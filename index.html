@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Houses of worship in New York City</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<style>
+:root {
+  --bg: #f6f3ec;
+  --ink: #1a1a1a;
+  --rule: #d9d3c4;
+  --muted: #6b6557;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+header {
+  padding: 18px 24px 14px; border-bottom: 1px solid var(--rule);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+}
+h1 { font-family: Georgia, "Times New Roman", serif; font-size: 26px; margin: 0 0 4px;
+  letter-spacing: -0.01em; font-weight: 600; }
+.sub { color: var(--muted); font-size: 13px; max-width: 720px; line-height: 1.45; }
+.sub a { color: var(--ink); }
+.layout { display: flex; height: calc(100vh - 96px); min-height: 480px; }
+#map { flex: 1; }
+aside {
+  width: 300px; border-left: 1px solid var(--rule); overflow-y: auto;
+  padding: 14px 16px 24px; background: #fbf9f3;
+}
+.filter-group { margin-bottom: 14px; }
+.filter-group h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; cursor: pointer; }
+.row input { margin: 0; }
+.swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.15); }
+.count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.controls { display: flex; gap: 8px; margin-bottom: 12px; }
+.controls button { flex: 1; padding: 6px 8px; font-size: 12px; cursor: pointer;
+  background: white; border: 1px solid var(--rule); border-radius: 4px; }
+.controls button:hover { background: #efe9d8; }
+details { margin-top: 8px; }
+details summary { cursor: pointer; font-size: 12px; color: var(--muted); padding: 4px 0; }
+details ul { list-style: none; padding: 0 0 0 8px; margin: 4px 0 8px;
+  border-left: 2px solid var(--rule); }
+details li { padding: 2px 0 2px 8px; font-size: 12px; }
+.popup-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.popup-denom { font-size: 12px; color: #444; margin-bottom: 4px; }
+.popup-addr { font-size: 11px; color: var(--muted); }
+@media (max-width: 760px) {
+  .layout { flex-direction: column; height: auto; }
+  #map { height: 60vh; }
+  aside { width: 100%; border-left: none; border-top: 1px solid var(--rule); max-height: 50vh; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Houses of worship in New York City</h1>
+    <div class="sub">
+      4,100+ active religious sites mapped by tradition and denomination. Data from OpenStreetMap.
+      <a href="methodology.html">Methodology &amp; limitations</a>.
+    </div>
+  </div>
+  <div class="sub" id="counter" style="font-variant-numeric: tabular-nums;"></div>
+</header>
+<div class="layout">
+  <div id="map"></div>
+  <aside id="panel"></aside>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+const GROUP_COLORS = {
+  "Christian":              "#4c78a8",
+  "Jewish":                 "#54a24b",
+  "Muslim":                 "#b279a2",
+  "Buddhist":               "#eeca3b",
+  "Hindu":                  "#e45756",
+  "Sikh":                   "#f58518",
+  "Other":                  "#9d755d",
+  "Unknown / unspecified":  "#b0b0b0"
+};
+
+const map = L.map('map', { preferCanvas: true }).setView([40.7305, -73.935], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+const clusters = L.markerClusterGroup({
+  chunkedLoading: true,
+  showCoverageOnHover: false,
+  maxClusterRadius: 50,
+  iconCreateFunction: function(cluster) {
+    const children = cluster.getAllChildMarkers();
+    const counts = {};
+    children.forEach(m => { counts[m.options._g] = (counts[m.options._g] || 0) + 1; });
+    const top = Object.keys(counts).sort((a,b) => counts[b]-counts[a])[0];
+    const color = GROUP_COLORS[top] || '#888';
+    const n = children.length;
+    const size = n < 10 ? 30 : n < 50 ? 36 : n < 200 ? 44 : 52;
+    return L.divIcon({
+      html: `<div style="background:${color};opacity:0.85;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:12px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25)">${n}</div>`,
+      className: '', iconSize: [size, size]
+    });
+  }
+});
+map.addLayer(clusters);
+
+let ALL = [];
+const enabledGroups = new Set();
+const enabledDenoms = new Set();
+
+function passes(p) {
+  return enabledGroups.has(p.g) && enabledDenoms.has(p.d);
+}
+
+function rebuild() {
+  clusters.clearLayers();
+  const batch = [];
+  let n = 0;
+  for (const p of ALL) {
+    if (!passes(p)) continue;
+    n++;
+    const color = GROUP_COLORS[p.g] || '#888';
+    const m = L.circleMarker([p.lat, p.lon], {
+      radius: 4, color: '#fff', weight: 1,
+      fillColor: color, fillOpacity: 0.9, _g: p.g
+    });
+    const popup = `
+      <div class="popup-name">${p.n ? escape(p.n) : '(unnamed)'}</div>
+      <div class="popup-denom" style="color:${color}">${escape(p.d)}</div>
+      ${p.a ? `<div class="popup-addr">${escape(p.a)}</div>` : ''}
+      ${p.w ? `<div class="popup-addr"><a href="${escape(p.w)}" target="_blank" rel="noopener">website</a></div>` : ''}
+    `;
+    m.bindPopup(popup);
+    batch.push(m);
+  }
+  clusters.addLayers(batch);
+  document.getElementById('counter').textContent =
+    `${n.toLocaleString()} of ${ALL.length.toLocaleString()} sites shown`;
+}
+
+function escape(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+fetch('data.json').then(r => r.json()).then(data => {
+  ALL = data.points;
+  data.groups.forEach(([g]) => enabledGroups.add(g));
+  data.denoms.forEach(([d]) => enabledDenoms.add(d));
+
+  // Build sidebar
+  const panel = document.getElementById('panel');
+  panel.innerHTML = `
+    <div class="controls">
+      <button id="all">Select all</button>
+      <button id="none">Clear</button>
+    </div>
+  `;
+
+  // Group denominations under their religion group
+  const byGroup = {};
+  ALL.forEach(p => {
+    byGroup[p.g] = byGroup[p.g] || {};
+    byGroup[p.g][p.d] = (byGroup[p.g][p.d] || 0) + 1;
+  });
+
+  const groupOrder = data.groups.map(([g]) => g);
+  for (const g of groupOrder) {
+    const denoms = Object.entries(byGroup[g]).sort((a,b) => b[1]-a[1]);
+    const total = denoms.reduce((s, [,c]) => s+c, 0);
+    const color = GROUP_COLORS[g] || '#888';
+
+    const div = document.createElement('div');
+    div.className = 'filter-group';
+    div.innerHTML = `
+      <label class="row" style="font-weight:600">
+        <input type="checkbox" data-group="${escape(g)}" checked>
+        <span class="swatch" style="background:${color}"></span>
+        <span>${escape(g)}</span>
+        <span class="count">${total.toLocaleString()}</span>
+      </label>
+      <details>
+        <summary>Denominations (${denoms.length})</summary>
+        <ul>
+          ${denoms.map(([d, c]) => `
+            <li><label class="row">
+              <input type="checkbox" data-denom="${escape(d)}" checked>
+              <span>${escape(d)}</span>
+              <span class="count">${c.toLocaleString()}</span>
+            </label></li>`).join('')}
+        </ul>
+      </details>
+    `;
+    panel.appendChild(div);
+  }
+
+  panel.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.group) {
+      const g = t.dataset.group;
+      if (t.checked) enabledGroups.add(g); else enabledGroups.delete(g);
+      // also toggle all child denoms
+      panel.querySelectorAll(`.filter-group`).forEach(fg => {
+        const parent = fg.querySelector(`input[data-group="${CSS.escape(g)}"]`);
+        if (!parent) return;
+        if (parent.dataset.group !== g) return;
+        fg.querySelectorAll('input[data-denom]').forEach(cb => {
+          cb.checked = t.checked;
+          const d = cb.dataset.denom;
+          if (t.checked) enabledDenoms.add(d); else enabledDenoms.delete(d);
+        });
+      });
+    } else if (t.dataset.denom) {
+      const d = t.dataset.denom;
+      if (t.checked) enabledDenoms.add(d); else enabledDenoms.delete(d);
+    }
+    rebuild();
+  });
+
+  document.getElementById('all').onclick = () => {
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+    data.groups.forEach(([g]) => enabledGroups.add(g));
+    data.denoms.forEach(([d]) => enabledDenoms.add(d));
+    rebuild();
+  };
+  document.getElementById('none').onclick = () => {
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+    enabledGroups.clear(); enabledDenoms.clear();
+    rebuild();
+  };
+
+  rebuild();
+});
+</script>
+</body>
+</html>

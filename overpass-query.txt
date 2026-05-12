@@ -1,0 +1,7 @@
+[out:json][timeout:120];
+(
+  node["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
+  way["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
+  relation["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
+);
+out center tags;

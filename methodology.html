@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Methodology — Houses of worship in NYC</title>
+<style>
+body { max-width: 720px; margin: 32px auto; padding: 0 20px 60px;
+  font-family: Georgia, "Times New Roman", serif; color: #1a1a1a; line-height: 1.55; }
+h1 { font-size: 28px; margin-bottom: 4px; }
+h2 { font-size: 18px; margin-top: 28px; font-family: -apple-system, sans-serif; }
+.sub { color: #6b6557; font-family: -apple-system, sans-serif; font-size: 13px; }
+a { color: #1a1a1a; }
+code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  background: #f6f3ec; padding: 2px 5px; border-radius: 3px; }
+pre { padding: 12px; overflow-x: auto; }
+.back { font-family: -apple-system, sans-serif; font-size: 13px; }
+ul li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<p class="back"><a href="index.html">&larr; back to map</a></p>
+<h1>Methodology</h1>
+<p class="sub">How this map of New York City houses of worship was built — sources, limits, and what it does and doesn't show.</p>
+
+<h2>Data source</h2>
+<p>Every point on the map comes from <a href="https://www.openstreetmap.org/">OpenStreetMap</a> (OSM),
+queried through the Overpass API on 2026-05-11. The query pulls every feature tagged
+<code>amenity=place_of_worship</code> within the bounding box covering the five boroughs:</p>
+<pre>[out:json][timeout:120];
+(
+  node["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
+  way["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
+  relation["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
+);
+out center tags;</pre>
+<p>That returned 4,145 features. The bounding box extends slightly beyond the city line; a small number of
+points may sit just outside NYC's official border.</p>
+
+<h2>Classification</h2>
+<p>OSM tags each place of worship with a <code>religion</code> value (e.g., <code>christian</code>,
+<code>jewish</code>, <code>muslim</code>) and, optionally, a <code>denomination</code>
+(e.g., <code>catholic</code>, <code>baptist</code>, <code>orthodox</code>). The
+processing script (<code>process.py</code>) maps those raw values to eight top-level groups —
+Christian, Jewish, Muslim, Buddhist, Hindu, Sikh, Other, Unknown/unspecified —
+and to a curated list of denomination labels.</p>
+<p>Notable classification choices:</p>
+<ul>
+  <li><strong>Catholic</strong> combines OSM's <code>catholic</code>, <code>roman_catholic</code>, and <code>greek_catholic</code> tags.</li>
+  <li><strong>Orthodox Christian</strong> combines Greek, Russian, Romanian, Serbian, Ukrainian, Coptic, Ethiopian, Antiochian, and Syriac Orthodox sub-tags.</li>
+  <li><strong>Methodist</strong> combines United Methodist, African Methodist Episcopal, AME Zion, and Free Methodist.</li>
+  <li><strong>Pentecostal</strong> includes Assemblies of God and Church of God.</li>
+  <li><strong>Jewish — Orthodox</strong> includes Hasidic and Modern Orthodox where tagged as such; most Jewish sites in OSM lack a denomination tag and fall into <em>Jewish — Unspecified</em>.</li>
+  <li><strong>Muslim — Sunni / Shia</strong> are kept separate where tagged, but only ~15% of Muslim sites are tagged with a specific tradition; the rest are <em>Muslim — Unspecified</em>.</li>
+  <li><strong>Christian — unspecified</strong> covers any Christian site with no denomination tag in OSM. This is the largest single label in the dataset (~1,600 sites) and reflects OSM's tagging gaps more than any actual non-denominational identity.</li>
+</ul>
+
+<h2>What this map is</h2>
+<ul>
+  <li>A map of <em>physical sites</em> tagged as places of worship — buildings, storefronts, and dedicated rooms.</li>
+  <li>The most current crowdsourced inventory available without scraping individual denominational directories.</li>
+</ul>
+
+<h2>What this map is not</h2>
+<ul>
+  <li><strong>Not a map of religious adherents.</strong> A neighborhood with many small storefront churches is not necessarily more Christian than one with a single megachurch.</li>
+  <li><strong>Not authoritative.</strong> OSM is volunteer-maintained. Some sites are missing; some closed sites may still appear; some denomination tags are wrong or stale.</li>
+  <li><strong>Not weighted by congregation size.</strong> A 5,000-seat cathedral and a one-room storefront church are equal dots.</li>
+  <li><strong>Not a complete picture of Jewish New York.</strong> Many Hasidic shtiebels operate out of unmarked rooms and apartments; they are largely invisible to OSM. For Jewish geography, the <a href="https://www.ujafedny.org/who-we-are/our-research/jewish-community-study-of-new-york">UJA-Federation Jewish Community Study</a> is far more reliable.</li>
+  <li><strong>Not a count of Muslim sites.</strong> A meaningful number of NYC mosques operate out of rented commercial space and may not appear in OSM.</li>
+</ul>
+
+<h2>Known limitations of OSM tagging</h2>
+<ul>
+  <li>~40% of the dataset (1,744 sites) is missing a <code>denomination</code> tag entirely.</li>
+  <li>OSM's denomination vocabulary is inconsistent — both <code>catholic</code> and <code>roman_catholic</code> appear; both <code>nondenominational</code> and <code>non-denominational</code>; etc. The processing script normalizes the common cases but rare misspellings fall into <em>Christian — unspecified</em>.</li>
+  <li>Closed-but-still-mapped buildings are not systematically removed in OSM. Some dots represent sites that no longer hold services.</li>
+</ul>
+
+<h2>Reproducing this map</h2>
+<p>Three files: <code>overpass-query.txt</code> (the Overpass query), <code>process.py</code> (classification + reduction), and <code>index.html</code> (the Leaflet front end). Run:</p>
+<pre>curl -X POST -d @overpass-query.txt https://overpass-api.de/api/interpreter -o raw.json
+python3 process.py     # writes data.json
+# then serve the folder over HTTP</pre>
+
+<h2>Better sources for specific traditions</h2>
+<ul>
+  <li><strong>Christian (all denominations):</strong> the <a href="https://www.thearda.com/us-religion/census/congregational-membership">U.S. Religion Census</a> (ASARB, 2020) reports adherent counts by county.</li>
+  <li><strong>Catholic:</strong> Archdiocese of New York and Diocese of Brooklyn publish parish boundaries and Mass-attendance figures.</li>
+  <li><strong>Jewish:</strong> <a href="https://www.ujafedny.org/who-we-are/our-research/jewish-community-study-of-new-york">UJA-Federation Jewish Community Study</a> (2023 update).</li>
+  <li><strong>Houses of worship in the city's property records:</strong> NYC PLUTO building class codes M1–M9.</li>
+</ul>
+
+<p class="back" style="margin-top: 32px;"><a href="index.html">&larr; back to map</a></p>
+</body>
+</html>
