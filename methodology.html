@@ -26,16 +26,17 @@ ul li { margin-bottom: 4px; }
 <h2>Data source</h2>
 <p>Every point on the map comes from <a href="https://www.openstreetmap.org/">OpenStreetMap</a> (OSM),
 queried through the Overpass API on 2026-05-11. The query pulls every feature tagged
-<code>amenity=place_of_worship</code> within the bounding box covering the five boroughs:</p>
-<pre>[out:json][timeout:120];
+<code>amenity=place_of_worship</code> inside the New York City administrative boundary (OSM relation 175905):</p>
+<pre>[out:json][timeout:180];
+area(3600175905)->.nyc;
 (
-  node["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
-  way["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
-  relation["amenity"="place_of_worship"](40.4774,-74.2591,40.9176,-73.7004);
+  node["amenity"="place_of_worship"](area.nyc);
+  way["amenity"="place_of_worship"](area.nyc);
+  relation["amenity"="place_of_worship"](area.nyc);
 );
 out center tags;</pre>
-<p>That returned 4,145 features. The bounding box extends slightly beyond the city line; a small number of
-points may sit just outside NYC's official border.</p>
+<p>That returned 2,847 features inside the five boroughs. (An earlier version of this map used a
+bounding box and pulled in ~1,300 sites from Newark, Jersey City, Hackensack, Yonkers, and Nassau County — those have been removed.)</p>
 
 <h2>Classification</h2>
 <p>OSM tags each place of worship with a <code>religion</code> value (e.g., <code>christian</code>,
