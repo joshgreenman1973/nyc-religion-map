@@ -25,7 +25,7 @@ ul li { margin-bottom: 4px; }
 
 <h2>Data source</h2>
 <p>Every point on the map comes from <a href="https://www.openstreetmap.org/">OpenStreetMap</a> (OSM),
-queried through the Overpass API on 2026-05-11. The query pulls every feature tagged
+queried through the Overpass API<span id="pulled"></span> and refreshed monthly. The query pulls every feature tagged
 <code>amenity=place_of_worship</code> inside the New York City administrative boundary (OSM relation 175905):</p>
 <pre>[out:json][timeout:180];
 area(3600175905)->.nyc;
@@ -93,5 +93,15 @@ python3 process.py     # writes data.json
 </ul>
 
 <p class="back" style="margin-top: 32px;"><a href="index.html">&larr; back to map</a></p>
+<script>
+// Read the pull date off the data file rather than hard-coding it here, so
+// this page can't drift from what the map is actually showing.
+fetch('data.json').then(r => r.json()).then(d => {
+  if (!d.generated) return;
+  document.getElementById('pulled').textContent = ' on ' +
+    new Date(d.generated + 'T00:00:00Z').toLocaleDateString('en-US',
+      { dateStyle: 'medium', timeZone: 'UTC' });
+}).catch(() => {});
+</script>
 </body>
 </html>

@@ -151,10 +151,16 @@ print("Top denominations:")
 for x in denom_counts.most_common(40):
     print(" ", x)
 
+import datetime
 with open("data.json", "w") as f:
     json.dump({"points": points,
                "groups": group_counts.most_common(),
-               "denoms": denom_counts.most_common()}, f, separators=(",", ":"))
+               "denoms": denom_counts.most_common(),
+               # Dates the data itself: the map and the methodology page both
+               # read this, so a stalled refresh shows an old date rather than
+               # a hand-typed one that stays current-looking forever.
+               "generated": datetime.datetime.now(datetime.timezone.utc)
+                                    .strftime("%Y-%m-%d")}, f, separators=(",", ":"))
 print("Wrote data.json:", )
 import os
 print("Size KB:", round(os.path.getsize("data.json")/1024, 1))

@@ -63,7 +63,7 @@ details li { padding: 2px 0 2px 8px; font-size: 12px; }
   <div>
     <h1>Houses of worship in New York City</h1>
     <div class="sub">
-      2,800+ active religious sites across the five boroughs, mapped by tradition and denomination. Data from OpenStreetMap.
+      2,800+ active religious sites across the five boroughs, mapped by tradition and denomination. Data from OpenStreetMap<span id="pulled"></span>.
       <a href="methodology.html">Methodology &amp; limitations</a>.
     </div>
   </div>
@@ -154,6 +154,12 @@ function escape(s) {
 
 fetch('data.json').then(r => r.json()).then(data => {
   ALL = data.points;
+  // Date the data from the file, not the page load.
+  if (data.generated) {
+    document.getElementById('pulled').textContent = ', pulled ' +
+      new Date(data.generated + 'T00:00:00Z').toLocaleDateString('en-US',
+        { dateStyle: 'medium', timeZone: 'UTC' });
+  }
   data.groups.forEach(([g]) => enabledGroups.add(g));
   data.denoms.forEach(([d]) => enabledDenoms.add(d));
 
