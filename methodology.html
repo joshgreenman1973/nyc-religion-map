@@ -3,104 +3,109 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Methodology — Houses of worship in NYC</title>
+<title>How the houses of worship map was made</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="house.css">
 <style>
-body { max-width: 720px; margin: 32px auto; padding: 0 20px 60px;
-  font-family: Georgia, "Times New Roman", serif; color: #1a1a1a; line-height: 1.55; }
-h1 { font-size: 28px; margin-bottom: 4px; }
-h2 { font-size: 18px; margin-top: 28px; font-family: -apple-system, sans-serif; }
-.sub { color: #6b6557; font-family: -apple-system, sans-serif; font-size: 13px; }
-a { color: #1a1a1a; }
-code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 12px;
-  background: #f6f3ec; padding: 2px 5px; border-radius: 3px; }
-pre { padding: 12px; overflow-x: auto; }
-.back { font-family: -apple-system, sans-serif; font-size: 13px; }
-ul li { margin-bottom: 4px; }
+:root{--accent:var(--sun)}
+.doc{max-width:760px;padding:0 clamp(16px,4vw,48px) 60px}
+.doc h2{margin:36px 0 8px}
+.doc p,.doc li{color:var(--fg);max-width:68ch}
+.doc p{margin:0 0 12px}
+.doc ul{padding-left:20px;margin:0 0 12px}
+.doc li{margin-bottom:6px}
+.doc code{font-family:var(--sans);font-weight:700;color:var(--fg)}
+pre{background:var(--bg2);border:1px solid var(--line);padding:12px 14px;overflow-x:auto;font-size:13px;line-height:1.45;color:var(--fg2)}
+.n{font-variant-numeric:tabular-nums;font-weight:700}
 </style>
 </head>
 <body>
-<p class="back"><a href="index.html">&larr; back to map</a></p>
-<h1>Methodology</h1>
-<p class="sub">How this map of New York City houses of worship was built — sources, limits, and what it does and doesn't show.</p>
+<div class="strip">
+  <a href="./">Back to the map</a>
+  <span id="pulled">&nbsp;</span>
+</div>
+<header class="head">
+  <h1>How the map was made</h1>
+  <p class="finding">It maps buildings, not believers, and it is only as complete as OpenStreetMap.</p>
+</header>
 
-<h2>Data source</h2>
-<p>Every point on the map comes from <a href="https://www.openstreetmap.org/">OpenStreetMap</a> (OSM),
-queried through the Overpass API<span id="pulled"></span> and refreshed monthly. The query pulls every feature tagged
-<code>amenity=place_of_worship</code> inside the New York City administrative boundary (OSM relation 175905):</p>
+<div class="doc">
+
+<h2>Where the sites come from</h2>
+<p>Every point comes from <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, the volunteer-built world map. On the 1st of each month a script asks the Overpass API for every feature tagged <code>amenity=place_of_worship</code> inside the New York City boundary (OpenStreetMap relation 175905):</p>
 <pre>[out:json][timeout:180];
-area(3600175905)->.nyc;
+area(3600175905)-&gt;.nyc;
 (
   node["amenity"="place_of_worship"](area.nyc);
   way["amenity"="place_of_worship"](area.nyc);
   relation["amenity"="place_of_worship"](area.nyc);
 );
 out center tags;</pre>
-<p>That returned 2,847 features inside the five boroughs. (An earlier version of this map used a
-bounding box and pulled in ~1,300 sites from Newark, Jersey City, Hackensack, Yonkers, and Nassau County — those have been removed.)</p>
+<p>The latest pull returned <span class="n" data-k="raw">…</span> features. Some congregations are mapped twice, as a point and as a building outline, or as a church and its parish hall under the same name. Where two features share a name and either the same city building or sit within 80 meters of each other, the map keeps one, preferring the copy with a photo or more detail. That removed <span class="n" data-k="dups">…</span>, leaving <span class="n" data-k="total">…</span> sites.</p>
 
-<h2>Classification</h2>
-<p>OSM tags each place of worship with a <code>religion</code> value (e.g., <code>christian</code>,
-<code>jewish</code>, <code>muslim</code>) and, optionally, a <code>denomination</code>
-(e.g., <code>catholic</code>, <code>baptist</code>, <code>orthodox</code>). The
-processing script (<code>process.py</code>) maps those raw values to eight top-level groups —
-Christian, Jewish, Muslim, Buddhist, Hindu, Sikh, Other, Unknown/unspecified —
-and to a curated list of denomination labels.</p>
-<p>Notable classification choices:</p>
+<h2>How sites are grouped</h2>
+<p>OpenStreetMap tags each site with a <code>religion</code> (christian, jewish, muslim and so on) and, often, a <code>denomination</code>. The processing script, <a href="process.py">process.py</a>, maps those to eight traditions and a shorter list of denominations.</p>
 <ul>
-  <li><strong>Catholic</strong> combines OSM's <code>catholic</code>, <code>roman_catholic</code>, and <code>greek_catholic</code> tags.</li>
-  <li><strong>Orthodox Christian</strong> combines Greek, Russian, Romanian, Serbian, Ukrainian, Coptic, Ethiopian, Antiochian, and Syriac Orthodox sub-tags.</li>
-  <li><strong>Methodist</strong> combines United Methodist, African Methodist Episcopal, AME Zion, and Free Methodist.</li>
-  <li><strong>Pentecostal</strong> includes Assemblies of God and Church of God.</li>
-  <li><strong>Jewish — Orthodox</strong> includes Hasidic and Modern Orthodox where tagged as such; most Jewish sites in OSM lack a denomination tag and fall into <em>Jewish — Unspecified</em>.</li>
-  <li><strong>Muslim — Sunni / Shia</strong> are kept separate where tagged, but only ~15% of Muslim sites are tagged with a specific tradition; the rest are <em>Muslim — Unspecified</em>.</li>
-  <li><strong>Christian — unspecified</strong> covers any Christian site with no denomination tag in OSM. This is the largest single label in the dataset (~1,600 sites) and reflects OSM's tagging gaps more than any actual non-denominational identity.</li>
+  <li>Catholic combines catholic, roman_catholic and greek_catholic.</li>
+  <li>Orthodox Christian combines the Greek, Russian, Romanian, Serbian, Ukrainian, Albanian, Bulgarian, Antiochian, Coptic, Ethiopian, Syriac and Armenian churches.</li>
+  <li>Methodist includes United Methodist, African Methodist Episcopal, AME Zion and Free Methodist. Pentecostal includes Assemblies of God and the Church of God.</li>
+  <li>Congregational/UCC combines congregational and United Church of Christ. Smaller named denominations (Church of Christ, Nazarene, Apostolic and others) go to Other Christian rather than to Christian, unspecified, because they do name a denomination.</li>
+  <li>A handful of tagging slips are corrected: a site tagged with a Catholic religion value, a mosque tagged <code>mue</code>, and sites that carry a denomination such as Baptist or Jewish but no religion.</li>
 </ul>
+<p>The gaps are large. <span class="n" data-k="cu">…</span> Christian sites, <span class="n" data-k="cupct">…</span> of them, carry no denomination and appear as Christian, unspecified. That reflects missing tags, not nondenominational congregations. Only <span class="n" data-k="mtag">…</span> of the <span class="n" data-k="mus">…</span> Muslim sites are tagged Sunni, Shia or another tradition, and most Jewish sites carry no movement.</p>
 
-<h2>What this map is</h2>
-<ul>
-  <li>A map of <em>physical sites</em> tagged as places of worship — buildings, storefronts, and dedicated rooms.</li>
-  <li>The most current crowdsourced inventory available without scraping individual denominational directories.</li>
-</ul>
+<h2>Photos</h2>
+<p><span class="n" data-k="ph">…</span> sites have a photo. Each comes from <a href="https://commons.wikimedia.org/">Wikimedia Commons</a>: where OpenStreetMap links a site to its <a href="https://www.wikidata.org/">Wikidata</a> entry, the map uses that entry's main image. Every photo is credited to its photographer with its license and links to its Commons page. Most show the facade; a few show an interior or a wider view, because that is what the Wikidata entry uses.</p>
+<p>Sites without a photo link to Google Street View at the site's location, which opens the nearest street-level panorama. It may need turning to face the building.</p>
+
+<h2>Building dates and architects</h2>
+<p>Each site is matched to a building in the city's <a href="https://data.cityofnewyork.us/City-Government/Building-Footprints/5zhs-2jue">building footprints file</a>, by the city building number OpenStreetMap carries or, failing that, by which footprint the point falls inside. <span class="n" data-k="fp">…</span> sites matched. The file gives a construction year, but many of those years are estimates: citywide, about 112,000 buildings are listed as 1930 and about 37,000 each as 1931 and 1935, against a few thousand for neighboring years, and round decades are often guesses (St. Patrick's Cathedral, finished in 1878, is listed as 1910). The map shows a year only when it is a specific one, which leaves <span class="n" data-k="b">…</span> sites with a construction year. Even those can be wrong, or can date a later replacement building.</p>
+<p>For sites linked to Wikidata, the popup also gives Wikidata's start date and architect. That date is sometimes the founding of the congregation rather than the building: Trinity Church shows 1698.</p>
 
 <h2>What this map is not</h2>
 <ul>
-  <li><strong>Not a map of religious adherents.</strong> A neighborhood with many small storefront churches is not necessarily more Christian than one with a single megachurch.</li>
-  <li><strong>Not authoritative.</strong> OSM is volunteer-maintained. Some sites are missing; some closed sites may still appear; some denomination tags are wrong or stale.</li>
-  <li><strong>Not weighted by congregation size.</strong> A 5,000-seat cathedral and a one-room storefront church are equal dots.</li>
-  <li><strong>Not a complete picture of Jewish New York.</strong> Many Hasidic shtiebels operate out of unmarked rooms and apartments; they are largely invisible to OSM. For Jewish geography, the <a href="https://www.ujafedny.org/who-we-are/our-research/jewish-community-study-of-new-york">UJA-Federation Jewish Community Study</a> is far more reliable.</li>
-  <li><strong>Not a count of Muslim sites.</strong> A meaningful number of NYC mosques operate out of rented commercial space and may not appear in OSM.</li>
+  <li>Not a map of believers. A neighborhood with many storefront churches is not necessarily more Christian than one with a single large parish.</li>
+  <li>Not weighted by size. A cathedral and a one-room storefront church are the same dot.</li>
+  <li>Not complete. Many Hasidic shtiebels meet in unmarked rooms and apartments, and many mosques rent commercial space; both are often missing from OpenStreetMap. Some closed sites are still mapped.</li>
 </ul>
 
-<h2>Known limitations of OSM tagging</h2>
+<h2>Fixing errors</h2>
+<p>Every popup links to the site's OpenStreetMap entry. Anyone with a free account can correct a name, add a denomination or mark a site closed, and the map picks up the change at the next monthly refresh.</p>
+
+<h2>Rebuilding it</h2>
+<pre>python3 fetch_raw.py   # OpenStreetMap -&gt; raw.json
+python3 enrich.py      # Wikidata, Commons, building footprints -&gt; enrich.json
+python3 process.py     # classify, de-duplicate, merge -&gt; data.json</pre>
+<p>All three sources are free and need no key. The code is on <a href="https://github.com/joshgreenman1973/nyc-religion-map">GitHub</a>.</p>
+
+<h2>Better sources for particular traditions</h2>
 <ul>
-  <li>~40% of the dataset (1,744 sites) is missing a <code>denomination</code> tag entirely.</li>
-  <li>OSM's denomination vocabulary is inconsistent — both <code>catholic</code> and <code>roman_catholic</code> appear; both <code>nondenominational</code> and <code>non-denominational</code>; etc. The processing script normalizes the common cases but rare misspellings fall into <em>Christian — unspecified</em>.</li>
-  <li>Closed-but-still-mapped buildings are not systematically removed in OSM. Some dots represent sites that no longer hold services.</li>
+  <li>Christian congregations and adherents by county: the <a href="https://www.usreligioncensus.org/">U.S. Religion Census</a> (2020).</li>
+  <li>Catholic parishes: the Archdiocese of New York and the Diocese of Brooklyn.</li>
+  <li>Jewish New York: the UJA-Federation Jewish Community Study of New York (2023).</li>
+  <li>Religious buildings in property records: building class M in the city's PLUTO file.</li>
 </ul>
+</div>
 
-<h2>Reproducing this map</h2>
-<p>Three files: <code>overpass-query.txt</code> (the Overpass query), <code>process.py</code> (classification + reduction), and <code>index.html</code> (the Leaflet front end). Run:</p>
-<pre>curl -X POST -d @overpass-query.txt https://overpass-api.de/api/interpreter -o raw.json
-python3 process.py     # writes data.json
-# then serve the folder over HTTP</pre>
-
-<h2>Better sources for specific traditions</h2>
-<ul>
-  <li><strong>Christian (all denominations):</strong> the <a href="https://www.thearda.com/us-religion/census/congregational-membership">U.S. Religion Census</a> (ASARB, 2020) reports adherent counts by county.</li>
-  <li><strong>Catholic:</strong> Archdiocese of New York and Diocese of Brooklyn publish parish boundaries and Mass-attendance figures.</li>
-  <li><strong>Jewish:</strong> <a href="https://www.ujafedny.org/who-we-are/our-research/jewish-community-study-of-new-york">UJA-Federation Jewish Community Study</a> (2023 update).</li>
-  <li><strong>Houses of worship in the city's property records:</strong> NYC PLUTO building class codes M1–M9.</li>
-</ul>
-
-<p class="back" style="margin-top: 32px;"><a href="index.html">&larr; back to map</a></p>
 <script>
-// Read the pull date off the data file rather than hard-coding it here, so
-// this page can't drift from what the map is actually showing.
 fetch('data.json').then(r => r.json()).then(d => {
-  if (!d.generated) return;
-  document.getElementById('pulled').textContent = ' on ' +
-    new Date(d.generated + 'T00:00:00Z').toLocaleDateString('en-US',
-      { dateStyle: 'medium', timeZone: 'UTC' });
+  const P = d.points, fmt = n => n.toLocaleString('en-US');
+  const chr = P.filter(p => p.g === 'Christian').length;
+  const cu = P.filter(p => p.d === 'Christian — unspecified').length;
+  const mus = P.filter(p => p.g === 'Muslim');
+  const v = {
+    total: fmt(P.length), dups: fmt(d.duplicates_dropped || 0),
+    raw: fmt(P.length + (d.duplicates_dropped || 0)),
+    cu: fmt(cu), cupct: Math.round(100 * cu / chr) + '%',
+    mus: fmt(mus.length), mtag: fmt(mus.filter(p => p.d !== 'Muslim — Unspecified').length),
+    ph: fmt(P.filter(p => p.ph).length), b: fmt(P.filter(p => p.b).length),
+    fp: fmt(d.footprint_matches || 0)
+  };
+  document.querySelectorAll('[data-k]').forEach(el => { if (v[el.dataset.k] != null) el.textContent = v[el.dataset.k]; });
+  if (d.generated) document.getElementById('pulled').textContent = 'Data pulled ' +
+    new Date(d.generated + 'T00:00:00Z').toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
 }).catch(() => {});
 </script>
 </body>

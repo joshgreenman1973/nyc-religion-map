@@ -4,247 +4,346 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Houses of worship in New York City</title>
+<meta name="description" content="Every mapped church, synagogue, mosque, temple and gurdwara in the five boroughs, by tradition and denomination, with facade photos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<link rel="stylesheet" href="house.css">
 <style>
-:root {
-  --bg: #f6f3ec;
-  --ink: #1a1a1a;
-  --rule: #d9d3c4;
-  --muted: #6b6557;
+:root{ --accent:var(--sun); }
+/* ink per tradition: colour means tradition everywhere on the page */
+:root{
+  --t-christian:var(--cobalt); --t-jewish:var(--mint); --t-muslim:var(--lilac);
+  --t-buddhist:var(--sun); --t-hindu:var(--vermilion); --t-sikh:var(--orange);
+  --t-other:var(--rose); --t-unknown:#7d837c;
 }
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
-header {
-  padding: 18px 24px 14px; border-bottom: 1px solid var(--rule);
-  display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+
+/* ---------- the tradition bar: proportional, doubles as the key and filter ---------- */
+.mix{padding:20px clamp(16px,4vw,48px) 0}
+.mixbar{display:flex;height:22px;width:100%;gap:2px}
+.mixbar button{border:0;padding:0;cursor:pointer;min-width:4px;background:var(--c)}
+.mixbar button.off{opacity:.18}
+.mixkeys{display:flex;flex-wrap:wrap;gap:4px 4px;margin-top:10px}
+.mixkeys button{display:inline-flex;align-items:center;gap:7px;font-size:var(--t-small);font-weight:600;
+  padding:5px 10px 5px 8px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer}
+.mixkeys button i{width:10px;height:10px;display:block;background:var(--c)}
+.mixkeys button span{color:var(--fg2);font-weight:500;font-variant-numeric:tabular-nums}
+.mixkeys button.off{color:var(--fg2);border-color:var(--line2)}
+.mixkeys button.off i{opacity:.25}
+.mixkeys button:hover{border-color:var(--fg)}
+
+/* ---------- map + panel ---------- */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 340px;border-top:1px solid var(--line2);margin-top:18px}
+#map{height:calc(100vh - 120px);min-height:520px;background:var(--bg)}
+aside{border-left:1px solid var(--line2);height:calc(100vh - 120px);min-height:520px;overflow-y:auto;display:flex;flex-direction:column}
+@media(max-width:860px){
+  .stage{grid-template-columns:1fr}
+  #map{height:64vh;min-height:380px}
+  aside{height:auto;min-height:0;border-left:0;border-top:1px solid var(--line2)}
 }
-h1 { font-family: Georgia, "Times New Roman", serif; font-size: 26px; margin: 0 0 4px;
-  letter-spacing: -0.01em; font-weight: 600; }
-.sub { color: var(--muted); font-size: 13px; max-width: 720px; line-height: 1.45; }
-.sub a { color: var(--ink); }
-.layout { display: flex; height: calc(100vh - 96px); min-height: 480px; }
-#map { flex: 1; }
-aside {
-  width: 300px; border-left: 1px solid var(--rule); overflow-y: auto;
-  padding: 14px 16px 24px; background: #fbf9f3;
-}
-.filter-group { margin-bottom: 14px; }
-.filter-group h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--muted); font-weight: 600; }
-.row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; cursor: pointer; }
-.row input { margin: 0; }
-.swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
-  border: 1px solid rgba(0,0,0,0.15); }
-.count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
-.controls { display: flex; gap: 8px; margin-bottom: 12px; }
-.controls button { flex: 1; padding: 6px 8px; font-size: 12px; cursor: pointer;
-  background: white; border: 1px solid var(--rule); border-radius: 4px; }
-.controls button:hover { background: #efe9d8; }
-details { margin-top: 8px; }
-details summary { cursor: pointer; font-size: 12px; color: var(--muted); padding: 4px 0; }
-details ul { list-style: none; padding: 0 0 0 8px; margin: 4px 0 8px;
-  border-left: 2px solid var(--rule); }
-details li { padding: 2px 0 2px 8px; font-size: 12px; }
-.popup-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-.popup-denom { font-size: 12px; color: #444; margin-bottom: 4px; }
-.popup-addr { font-size: 11px; color: var(--muted); }
-@media (max-width: 760px) {
-  .layout { flex-direction: column; height: auto; }
-  #map { height: 60vh; }
-  aside { width: 100%; border-left: none; border-top: 1px solid var(--rule); max-height: 50vh; }
-}
+.ctl{padding:14px 18px 12px;border-bottom:1px solid var(--line2);display:flex;flex-direction:column;gap:9px}
+.ctl input[type=search]{flex:none;width:100%}
+.ctl .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ctl .shown{font-size:var(--t-small);color:var(--fg2);font-variant-numeric:tabular-nums;margin-left:auto}
+#results{display:none}
+#results.on{display:block;border-bottom:1px solid var(--line2)}
+#results button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line2);
+  padding:9px 18px;cursor:pointer;color:var(--fg);font-family:inherit}
+#results button:last-child{border-bottom:0}
+#results button:hover,#results button.hi{background:var(--bg2)}
+#results b{display:block;font-weight:600;font-size:15px;line-height:1.25}
+#results small{color:var(--fg2);font-size:var(--t-micro)}
+#results .none{padding:10px 18px;color:var(--fg2);font-size:var(--t-small)}
+
+.denoms{padding:6px 18px 30px}
+.dg{padding:12px 0 6px;border-bottom:1px solid var(--line2)}
+.dg>h4{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:15px}
+.dg>h4 i{width:10px;height:10px;display:block;background:var(--c)}
+.dg>h4 span{margin-left:auto;color:var(--fg2);font-weight:500;font-variant-numeric:tabular-nums;font-size:var(--t-small)}
+.dg label{display:flex;align-items:center;gap:8px;font-size:var(--t-small);padding:3px 0;cursor:pointer;color:var(--fg)}
+.dg label input{margin:0;accent-color:var(--fg)}
+.dg label span{margin-left:auto;color:var(--fg2);font-variant-numeric:tabular-nums}
+.dg.off{opacity:.4}
+.dg .more{background:none;border:0;color:var(--fg2);font-size:var(--t-micro);padding:4px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+
+/* ---------- Leaflet, restyled to the house ---------- */
+.leaflet-container{font-family:var(--sans);background:var(--bg)}
+.leaflet-container canvas{max-width:none} /* house.css caps canvas width; Leaflet's overlay must overhang the map */
+.leaflet-bar a{background:var(--bg2);color:var(--fg);border-bottom-color:var(--line)!important;border-radius:0!important}
+.leaflet-bar a:hover{background:var(--line2)}
+.leaflet-bar{border:1px solid var(--line)!important;border-radius:0!important;box-shadow:none!important}
+.leaflet-control-attribution{background:rgba(17,19,17,.8)!important;color:var(--fg2)!important;font-size:11px}
+.leaflet-control-attribution a{color:var(--fg2)!important}
+.leaflet-popup-content-wrapper{background:var(--bg2);color:var(--fg);border-radius:0;box-shadow:none;border:1px solid var(--line);padding:0}
+.leaflet-popup-tip{background:var(--bg2);box-shadow:none;border:1px solid var(--line)}
+.leaflet-popup-content{margin:0;width:var(--pw,300px)!important;font-size:14px;line-height:1.45}
+.leaflet-container a.leaflet-popup-close-button{color:var(--fg);background:var(--bg2);width:28px;height:28px;font-size:20px;line-height:26px;top:0;right:0;z-index:2}
+.pop .ph{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--bg);border-bottom:1px solid var(--line)}
+.pop .cr{font-size:11px;color:var(--fg2);padding:5px 14px 0;line-height:1.35}
+.pop .cr a{color:var(--fg2)}
+.pop .bd{padding:10px 14px 13px}
+.pop h3{font-size:1.18rem;line-height:1.18;margin:0 0 5px;padding-right:18px}
+.pop .dn{display:flex;align-items:center;gap:7px;font-size:var(--t-small);font-weight:600;margin-bottom:6px}
+.pop .dn i{width:9px;height:9px;display:block;background:var(--c);flex:none}
+.pop .ad{color:var(--fg2);font-size:var(--t-small)}
+.pop .facts{margin:8px 0 0;padding:7px 0 0;border-top:1px solid var(--line);font-size:var(--t-small);color:var(--fg)}
+.pop .facts div{padding:1px 0}
+.pop .facts em{font-style:normal;color:var(--fg2)}
+.pop .links{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:9px;font-size:var(--t-small);font-weight:600}
+.pop .links a{color:var(--fg)}
+.pop .nophoto{display:block;padding:12px 14px;border-bottom:1px solid var(--line);font-size:var(--t-small);color:var(--fg2);text-decoration:none}
+.pop .nophoto b{color:var(--fg);text-decoration:underline;text-underline-offset:2px}
+.pop .nophoto:hover b{color:var(--sun)}
 </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>Houses of worship in New York City</h1>
-    <div class="sub">
-      2,800+ active religious sites across the five boroughs, mapped by tradition and denomination. Data from OpenStreetMap<span id="pulled"></span>.
-      <a href="methodology.html">Methodology &amp; limitations</a>.
-    </div>
-  </div>
-  <div class="sub" id="counter" style="font-variant-numeric: tabular-nums;"></div>
+<div class="strip">
+  <span>Sources: OpenStreetMap, Wikimedia Commons, NYC building footprints</span>
+  <span id="pulled">&nbsp;</span>
+</div>
+<header class="head">
+  <h1>Houses of worship in New York City</h1>
+  <p class="finding" id="finding">&nbsp;</p>
+  <p class="lede" id="lede">&nbsp;</p>
+  <p class="src"><a href="methodology.html">How this map was made, and what it leaves out</a></p>
 </header>
-<div class="layout">
-  <div id="map"></div>
-  <aside id="panel"></aside>
+
+<div class="mix">
+  <div class="mixbar" id="mixbar" role="group" aria-label="Traditions, sized by number of sites"></div>
+  <div class="mixkeys" id="mixkeys" role="group" aria-label="Show or hide a tradition"></div>
+</div>
+
+<div class="stage">
+  <div id="map" aria-label="Map of houses of worship"></div>
+  <aside>
+    <div class="ctl">
+      <input type="search" id="q" placeholder="Find a site by name or street" autocomplete="off" aria-label="Find a site by name or street">
+      <div class="row2">
+        <button class="chip" id="photoOnly" aria-pressed="false">Only sites with a photo</button>
+        <span class="shown" id="shown"></span>
+      </div>
+    </div>
+    <div id="results" role="listbox"></div>
+    <div class="denoms" id="denoms"></div>
+  </aside>
+</div>
+
+<div class="foot">
+  Photos come from Wikimedia Commons and carry their photographers' credits and licenses. Building dates come from the city's building footprint file, which estimates many of them.
+  Spot a wrong or closed site? Every popup links to the site's OpenStreetMap entry, where anyone can fix it; the map picks up changes on the 1st of each month.
+  <a href="methodology.html">Methodology</a>.
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
-const GROUP_COLORS = {
-  "Christian":              "#4c78a8",
-  "Jewish":                 "#54a24b",
-  "Muslim":                 "#b279a2",
-  "Buddhist":               "#eeca3b",
-  "Hindu":                  "#e45756",
-  "Sikh":                   "#f58518",
-  "Other":                  "#9d755d",
-  "Unknown / unspecified":  "#b0b0b0"
+const TRAD = {
+  "Christian": "christian", "Jewish": "jewish", "Muslim": "muslim", "Buddhist": "buddhist",
+  "Hindu": "hindu", "Sikh": "sikh", "Other": "other", "Unknown / unspecified": "unknown"
 };
+const css = getComputedStyle(document.documentElement);
+const ink = g => css.getPropertyValue('--t-' + (TRAD[g] || 'unknown')).trim();
+const tok = n => css.getPropertyValue('--' + n).trim();
+const fmt = n => n.toLocaleString('en-US');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const map = L.map('map', { preferCanvas: true }).setView([40.7305, -73.935], 11);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638', {
+const map = L.map('map', { preferCanvas: true, zoomControl: true }).setView([40.705, -73.94], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638', {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
   subdomains: 'abcd', maxZoom: 19
 }).addTo(map);
+const renderer = L.canvas({ padding: 0.3 });
+const layer = L.layerGroup().addTo(map);
 
-const clusters = L.markerClusterGroup({
-  chunkedLoading: true,
-  showCoverageOnHover: false,
-  maxClusterRadius: 50,
-  iconCreateFunction: function(cluster) {
-    const children = cluster.getAllChildMarkers();
-    const counts = {};
-    children.forEach(m => { counts[m.options._g] = (counts[m.options._g] || 0) + 1; });
-    const top = Object.keys(counts).sort((a,b) => counts[b]-counts[a])[0];
-    const color = GROUP_COLORS[top] || '#888';
-    const n = children.length;
-    const size = n < 10 ? 30 : n < 50 ? 36 : n < 200 ? 44 : 52;
-    return L.divIcon({
-      html: `<div style="background:${color};opacity:0.85;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:12px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25)">${n}</div>`,
-      className: '', iconSize: [size, size]
-    });
-  }
-});
-map.addLayer(clusters);
+let ALL = [], DATA = null;
+const offGroups = new Set(), offDenoms = new Set();
+let photoOnly = false;
+const markers = new Map();
+const PW = Math.min(300, window.innerWidth - 64);   // popup width, narrower on phones
+document.documentElement.style.setProperty('--pw', PW + 'px');
 
-let ALL = [];
-const enabledGroups = new Set();
-const enabledDenoms = new Set();
+function radius() { const z = map.getZoom(); return z <= 11 ? 2.6 : z <= 13 ? 3.6 : z <= 15 ? 5 : 6.5; }
+function passes(p) { return !offGroups.has(p.g) && !offDenoms.has(p.d) && (!photoOnly || p.ph); }
 
-function passes(p) {
-  return enabledGroups.has(p.g) && enabledDenoms.has(p.d);
-}
-
-function rebuild() {
-  clusters.clearLayers();
-  const batch = [];
+function draw() {
+  layer.clearLayers();
+  markers.clear();
+  const r = radius(), bg = tok('bg'), fg = tok('fg');
   let n = 0;
   for (const p of ALL) {
     if (!passes(p)) continue;
     n++;
-    const color = GROUP_COLORS[p.g] || '#888';
     const m = L.circleMarker([p.lat, p.lon], {
-      radius: 4, color: '#fff', weight: 1,
-      fillColor: color, fillOpacity: 0.9, _g: p.g
+      renderer, radius: p.ph ? r + 1.2 : r,
+      color: p.ph ? fg : bg, weight: p.ph ? 1.4 : 0.6,
+      fillColor: ink(p.g), fillOpacity: 0.92
     });
-    const popup = `
-      <div class="popup-name">${p.n ? escape(p.n) : '(unnamed)'}</div>
-      <div class="popup-denom" style="color:${color}">${escape(p.d)}</div>
-      ${p.a ? `<div class="popup-addr">${escape(p.a)}</div>` : ''}
-      ${p.w ? `<div class="popup-addr"><a href="${escape(p.w)}" target="_blank" rel="noopener">website</a></div>` : ''}
-    `;
-    m.bindPopup(popup);
-    batch.push(m);
+    m.bindPopup(() => popup(p), { maxWidth: PW, minWidth: PW, autoPanPadding: [20, 20] });
+    m.on('popupopen', () => history.replaceState(null, '', '#' + p.id));
+    m.on('popupclose', () => { if (location.hash === '#' + p.id) history.replaceState(null, '', location.pathname); });
+    m.addTo(layer);
+    markers.set(p.id, m);
   }
-  clusters.addLayers(batch);
-  document.getElementById('counter').textContent =
-    `${n.toLocaleString()} of ${ALL.length.toLocaleString()} sites shown`;
+  document.getElementById('shown').textContent =
+    n === ALL.length ? `All ${fmt(n)} shown` : `${fmt(n)} of ${fmt(ALL.length)} shown`;
+}
+map.on('zoomend', () => { const r = radius(); markers.forEach((m, id) => {
+  const p = BYID.get(id); m.setRadius(p.ph ? r + 1.2 : r); }); });
+
+function popup(p) {
+  const sv = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lon}`;
+  const osm = `https://www.openstreetmap.org/${{n:'node',w:'way',r:'relation'}[p.id[0]]}/${p.id.slice(1)}`;
+  let h = '<div class="pop">';
+  if (p.ph) {
+    h += `<a href="${esc(p.ph.p)}" target="_blank" rel="noopener"><img class="ph" src="${esc(p.ph.t)}" alt="${esc(p.n || 'Site')} photo" loading="lazy"></a>`;
+    const who = [p.ph.a, p.ph.l].filter(Boolean).map(esc).join(', ');
+    h += `<div class="cr">Photo: <a href="${esc(p.ph.p)}" target="_blank" rel="noopener">${who || 'Wikimedia Commons'}</a></div>`;
+  } else {
+    h += `<a class="nophoto" href="${sv}" target="_blank" rel="noopener">No photo on file yet. <b>See the facade on Street View</b></a>`;
+  }
+  h += `<div class="bd"><h3>${p.n ? esc(p.n) : 'Unnamed site'}</h3>`;
+  h += `<div class="dn" style="--c:${ink(p.g)}"><i></i>${esc(p.d)}</div>`;
+  if (p.a) h += `<div class="ad">${esc(p.a)}</div>`;
+  const facts = [];
+  if (p.b) facts.push(`<div>Building from ${p.b} <em>(city records)</em></div>`);
+  if (p.f && p.f !== p.b) facts.push(`<div>Dates to ${p.f} <em>(Wikidata)</em></div>`);
+  if (p.ar) facts.push(`<div>Architect${p.ar.length > 1 ? 's' : ''}: ${p.ar.map(esc).join(', ')}</div>`);
+  if (facts.length) h += `<div class="facts">${facts.join('')}</div>`;
+  const links = [];
+  if (p.ph) links.push(`<a href="${sv}" target="_blank" rel="noopener">Street View</a>`);
+  if (p.w && /^https?:\/\//i.test(p.w)) links.push(`<a href="${esc(p.w)}" target="_blank" rel="noopener">Website</a>`);
+  if (p.wp) links.push(`<a href="${esc(p.wp)}" target="_blank" rel="noopener">Wikipedia</a>`);
+  links.push(`<a href="${osm}" target="_blank" rel="noopener">Fix on OpenStreetMap</a>`);
+  h += `<div class="links">${links.join('')}</div></div></div>`;
+  return h;
 }
 
-function escape(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function open(p) {
+  if (offGroups.has(p.g) || offDenoms.has(p.d) || (photoOnly && !p.ph)) {
+    offGroups.delete(p.g); offDenoms.delete(p.d); photoOnly = photoOnly && !!p.ph;
+    syncControls(); draw();
+  }
+  map.setView([p.lat, p.lon], Math.max(map.getZoom(), 16));
+  markers.get(p.id)?.openPopup();
 }
 
-fetch('data.json').then(r => r.json()).then(data => {
-  ALL = data.points;
-  // Date the data from the file, not the page load.
-  if (data.generated) {
-    document.getElementById('pulled').textContent = ', pulled ' +
-      new Date(data.generated + 'T00:00:00Z').toLocaleDateString('en-US',
-        { dateStyle: 'medium', timeZone: 'UTC' });
+// ---------- the opening: finding, lede, tradition bar ----------
+const pct = (a, b) => Math.round(100 * a / b) + '%';
+function opening(d) {
+  const g = Object.fromEntries(d.groups), total = ALL.length;
+  const chr = g['Christian'] || 0;
+  const unspec = ALL.filter(p => p.d === 'Christian — unspecified').length;
+  document.getElementById('finding').textContent =
+    `${pct(chr, total)} of the ${fmt(total)} houses of worship mapped in the five boroughs are Christian, and ${pct(unspec, chr)} of those don't say which denomination.`;
+  const ph = ALL.filter(p => p.ph).length, built = ALL.filter(p => p.b).length;
+  document.getElementById('lede').innerHTML =
+    `The map also holds <b>${fmt(g['Jewish'] || 0)}</b> synagogues and other Jewish sites, <b>${fmt(g['Muslim'] || 0)}</b> mosques, ` +
+    `<b>${fmt(g['Buddhist'] || 0)}</b> Buddhist and <b>${fmt(g['Hindu'] || 0)}</b> Hindu temples and <b>${fmt(g['Sikh'] || 0)}</b> gurdwaras. ` +
+    `<b>${fmt(ph)}</b> sites have a photo, marked with a white ring; every other site links to its facade on Street View. ` +
+    `City records give a specific construction year for <b>${fmt(built)}</b> of the buildings.`;
+  if (d.generated) document.getElementById('pulled').textContent = 'Pulled ' +
+    new Date(d.generated + 'T00:00:00Z').toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
+
+  const bar = document.getElementById('mixbar'), keys = document.getElementById('mixkeys');
+  for (const [name, n] of d.groups) {
+    const b = document.createElement('button');
+    b.style.cssText = `--c:${ink(name)};flex:${n} 0 0`;
+    b.title = `${name}: ${fmt(n)}`; b.dataset.g = name;
+    b.setAttribute('aria-label', `${name}, ${fmt(n)} sites`);
+    bar.appendChild(b);
+    const k = document.createElement('button');
+    k.style.setProperty('--c', ink(name)); k.dataset.g = name;
+    k.innerHTML = `<i></i>${esc(name)} <span>${fmt(n)}</span>`;
+    keys.appendChild(k);
   }
-  data.groups.forEach(([g]) => enabledGroups.add(g));
-  data.denoms.forEach(([d]) => enabledDenoms.add(d));
+  const toggle = e => {
+    const t = e.target.closest('button[data-g]'); if (!t) return;
+    const name = t.dataset.g;
+    // Clicking the only tradition left on brings everything back.
+    const others = d.groups.map(x => x[0]).filter(x => x !== name);
+    if (!offGroups.has(name) && others.every(x => offGroups.has(x))) offGroups.clear();
+    else if (e.altKey || e.metaKey) { offGroups.clear(); others.forEach(x => offGroups.add(x)); }
+    else offGroups.has(name) ? offGroups.delete(name) : offGroups.add(name);
+    syncControls(); draw();
+  };
+  bar.onclick = toggle; keys.onclick = toggle;
+}
 
-  // Build sidebar
-  const panel = document.getElementById('panel');
-  panel.innerHTML = `
-    <div class="controls">
-      <button id="all">Select all</button>
-      <button id="none">Clear</button>
-    </div>
-  `;
-
-  // Group denominations under their religion group
+// ---------- denominations panel ----------
+function panel(d) {
   const byGroup = {};
-  ALL.forEach(p => {
-    byGroup[p.g] = byGroup[p.g] || {};
-    byGroup[p.g][p.d] = (byGroup[p.g][p.d] || 0) + 1;
-  });
-
-  const groupOrder = data.groups.map(([g]) => g);
-  for (const g of groupOrder) {
-    const denoms = Object.entries(byGroup[g]).sort((a,b) => b[1]-a[1]);
-    const total = denoms.reduce((s, [,c]) => s+c, 0);
-    const color = GROUP_COLORS[g] || '#888';
-
+  ALL.forEach(p => { (byGroup[p.g] ||= {})[p.d] = (byGroup[p.g][p.d] || 0) + 1; });
+  const box = document.getElementById('denoms');
+  box.innerHTML = '<p class="aside" style="margin:12px 0 0">Denominations, as tagged in OpenStreetMap. Untick one to hide it.</p>';
+  for (const [g, total] of d.groups) {
+    const ds = Object.entries(byGroup[g] || {}).sort((a, b) => b[1] - a[1]);
     const div = document.createElement('div');
-    div.className = 'filter-group';
-    div.innerHTML = `
-      <label class="row" style="font-weight:600">
-        <input type="checkbox" data-group="${escape(g)}" checked>
-        <span class="swatch" style="background:${color}"></span>
-        <span>${escape(g)}</span>
-        <span class="count">${total.toLocaleString()}</span>
-      </label>
-      <details>
-        <summary>Denominations (${denoms.length})</summary>
-        <ul>
-          ${denoms.map(([d, c]) => `
-            <li><label class="row">
-              <input type="checkbox" data-denom="${escape(d)}" checked>
-              <span>${escape(d)}</span>
-              <span class="count">${c.toLocaleString()}</span>
-            </label></li>`).join('')}
-        </ul>
-      </details>
-    `;
-    panel.appendChild(div);
+    div.className = 'dg'; div.dataset.g = g; div.style.setProperty('--c', ink(g));
+    const rows = ds.map(([name, c], i) =>
+      `<label${i >= 6 ? ' hidden' : ''}><input type="checkbox" data-d="${esc(name)}" checked>${esc(name)}<span>${fmt(c)}</span></label>`).join('');
+    div.innerHTML = `<h4><i></i>${esc(g)}<span>${fmt(total)}</span></h4>${ds.length > 1 ? rows : ''}` +
+      (ds.length > 6 ? `<button class="more">Show all ${ds.length}</button>` : '');
+    box.appendChild(div);
   }
-
-  panel.addEventListener('change', e => {
-    const t = e.target;
-    if (t.dataset.group) {
-      const g = t.dataset.group;
-      if (t.checked) enabledGroups.add(g); else enabledGroups.delete(g);
-      // also toggle all child denoms
-      panel.querySelectorAll(`.filter-group`).forEach(fg => {
-        const parent = fg.querySelector(`input[data-group="${CSS.escape(g)}"]`);
-        if (!parent) return;
-        if (parent.dataset.group !== g) return;
-        fg.querySelectorAll('input[data-denom]').forEach(cb => {
-          cb.checked = t.checked;
-          const d = cb.dataset.denom;
-          if (t.checked) enabledDenoms.add(d); else enabledDenoms.delete(d);
-        });
-      });
-    } else if (t.dataset.denom) {
-      const d = t.dataset.denom;
-      if (t.checked) enabledDenoms.add(d); else enabledDenoms.delete(d);
-    }
-    rebuild();
+  box.addEventListener('change', e => {
+    const dn = e.target.dataset.d; if (!dn) return;
+    e.target.checked ? offDenoms.delete(dn) : offDenoms.add(dn);
+    draw();
   });
+  box.addEventListener('click', e => {
+    if (!e.target.classList.contains('more')) return;
+    e.target.parentElement.querySelectorAll('label[hidden]').forEach(l => l.hidden = false);
+    e.target.remove();
+  });
+}
 
-  document.getElementById('all').onclick = () => {
-    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
-    data.groups.forEach(([g]) => enabledGroups.add(g));
-    data.denoms.forEach(([d]) => enabledDenoms.add(d));
-    rebuild();
-  };
-  document.getElementById('none').onclick = () => {
-    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
-    enabledGroups.clear(); enabledDenoms.clear();
-    rebuild();
-  };
+function syncControls() {
+  document.querySelectorAll('#mixbar button,#mixkeys button').forEach(b => b.classList.toggle('off', offGroups.has(b.dataset.g)));
+  document.querySelectorAll('.dg').forEach(x => x.classList.toggle('off', offGroups.has(x.dataset.g)));
+  document.querySelectorAll('.dg input[data-d]').forEach(cb => cb.checked = !offDenoms.has(cb.dataset.d));
+  document.getElementById('photoOnly').setAttribute('aria-pressed', photoOnly);
+}
 
-  rebuild();
+document.getElementById('photoOnly').onclick = () => { photoOnly = !photoOnly; syncControls(); draw(); };
+
+// ---------- search ----------
+const q = document.getElementById('q'), res = document.getElementById('results');
+let hits = [], hi = -1;
+const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/['’‘`]/g, '').replace(/\bst\.?\b/g, 'saint').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+function search() {
+  const s = norm(q.value);
+  if (s.length < 2) { res.classList.remove('on'); res.innerHTML = ''; hits = []; return; }
+  const words = s.split(' ');
+  hits = ALL.filter(p => { const h = p._s; return words.every(w => h.includes(w)); })
+    .sort((a, b) => (b.n && norm(b.n).startsWith(s)) - (a.n && norm(a.n).startsWith(s)) || !!b.ph - !!a.ph)
+    .slice(0, 8);
+  hi = -1;
+  res.innerHTML = hits.length ? hits.map((p, i) =>
+    `<button data-i="${i}" role="option"><b>${esc(p.n || 'Unnamed site')}</b><small>${esc([p.d, p.a].filter(Boolean).join(' · '))}</small></button>`).join('')
+    : '<div class="none">No site by that name or street.</div>';
+  res.classList.add('on');
+}
+q.addEventListener('input', search);
+q.addEventListener('keydown', e => {
+  if (!hits.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); hi = (hi + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % hits.length;
+    res.querySelectorAll('button').forEach((b, i) => b.classList.toggle('hi', i === hi));
+  } else if (e.key === 'Enter') { open(hits[Math.max(hi, 0)]); }
+  else if (e.key === 'Escape') { q.value = ''; search(); }
+});
+res.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) open(hits[+b.dataset.i]); });
+
+// ---------- load ----------
+const BYID = new Map();
+fetch('data.json').then(r => r.json()).then(d => {
+  DATA = d; ALL = d.points;
+  ALL.forEach(p => { p._s = norm(`${p.n} ${p.a} ${p.d}`); BYID.set(p.id, p); });
+  opening(d); panel(d); draw();
+  const id = location.hash.slice(1);
+  if (BYID.has(id)) open(BYID.get(id));
+}).catch(() => {
+  document.getElementById('finding').textContent = 'The map data did not load. Try reloading the page.';
 });
 </script>
 </body>
